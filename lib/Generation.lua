@@ -4,15 +4,8 @@ type table = {
 	[any]: any
 }
 
---// Libraries
-local ParserModule = loadstring(game:HttpGet('https://raw.githubusercontent.com/oxp7331-web/Roblox-parser/refs/heads/main/main.lua'))()
-
---// Parser
-function ParserModule:Import(Name: string)
-	local Url = `{self.ImportUrl}/{Name}.lua`
-	return loadstring(game:HttpGet(Url))()
-end
-ParserModule:Load()
+--// Libraries (loaded in Init)
+local ParserModule = nil
 
 --// Modules
 local Config
@@ -26,6 +19,25 @@ function Generation:Init(Configuration: table)
 	--// Modules
 	Config = Modules.Config
 	Hook = Modules.Hook
+	
+	--// Load Parser Module
+	local Success, Result = pcall(function()
+		return loadstring(game:HttpGet('https://raw.githubusercontent.com/depthso/Roblox-parser/refs/heads/main/main.lua'))()
+	end)
+	
+	if not Success then
+		warn("[DigmaSpy] Failed to load Parser: " .. tostring(Result))
+		return
+	end
+	
+	ParserModule = Result
+	
+	--// Parser setup
+	function ParserModule:Import(Name: string)
+		local Url = `{self.ImportUrl}/{Name}.lua`
+		return loadstring(game:HttpGet(Url))()
+	end
+	ParserModule:Load()
 end
 
 function Generation:SetSwapsCallback(Callback: (Interface: table) -> ())
@@ -65,6 +77,12 @@ function Generation:PickVariableName()
 end
 
 function Generation:NewParser()
+	--// Check if parser loaded
+	if not ParserModule then
+		warn("[DigmaSpy] Parser module not loaded!")
+		return nil
+	end
+	
 	local VariableName = self:PickVariableName()
 
 	--// Swaps
@@ -165,6 +183,11 @@ end
 
 function Generation:TableScript(Table: table)
 	local Module = self:NewParser()
+	
+	--// Check if parser created
+	if not Module then
+		return "-- Parser failed to load (-9999999 AURA)"
+	end
 
 	--// Pre-render variables
 	Module.Variables:PrerenderVariables(Table, {"Instance"})

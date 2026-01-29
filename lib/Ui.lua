@@ -513,6 +513,11 @@ function Ui:SetFocusedRemote(Data: Log)
 	
 	--// Generate initial script
 	local Module = Generation:NewParser()
+	if not Module then
+		self:SetEditorText("-- Parser failed to load (-9999999 AURA)")
+		return
+	end
+	
 	local Parsed = Generation:RemoteScript(Module, Data)
 	
 	self:SetEditorText(Parsed)
