@@ -87,12 +87,53 @@ function Ui:Notify(Text: string, Time: number?)
 		warn("[DigmaSpy] " .. Text)
 		return
 	end
-	OrionLib:MakeNotification({
-		Name = "DigmaSpy",
-		Content = Text,
-		Image = "rbxassetid://4483345998",
-		Time = Time or 3
-	})
+	local Success, Err = pcall(function()
+		OrionLib:MakeNotification({
+			Name = "DigmaSpy",
+			Content = Text,
+			Image = "rbxassetid://4483345998",
+			Time = Time or 3
+		})
+	end)
+	if not Success then
+		warn("[DigmaSpy Notify Error] " .. tostring(Err))
+	end
+end
+
+function Ui:LoadOrion()
+	if OrionLib then return true end
+	
+	print("[DigmaSpy] Loading Orion Library...")
+	
+	--// Check if game:HttpGet exists
+	if not game.HttpGet then
+		warn("[DigmaSpy] game:HttpGet not available!")
+		return false
+	end
+	
+	local Success, Result = pcall(function()
+		local Content = game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source')
+		if not Content or Content == "" then
+			error("Empty response from Orion URL")
+		end
+		print("[DigmaSpy] Orion content loaded, size: " .. tostring(#Content))
+		return loadstring(Content)()
+	end)
+	
+	if not Success then
+		warn("[DigmaSpy] Failed to load Orion Library: " .. tostring(Result))
+		return false
+	end
+	
+	if not Result then
+		warn("[DigmaSpy] Orion Library returned nil!")
+		return false
+	end
+	
+	OrionLib = Result
+	self.OrionLib = OrionLib
+	print("[DigmaSpy] Orion Library loaded successfully!")
+	return true
 end
 
 function Ui:Init(Data)
@@ -106,36 +147,32 @@ function Ui:Init(Data)
 	Config = Modules.Config
 	
 	--// Load Orion Library
-	local Success, Result = pcall(function()
-		return loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
-	end)
-	
-	if not Success then
-		warn("[DigmaSpy] Failed to load Orion Library: " .. tostring(Result))
-		return
-	end
-	
-	OrionLib = Result
-	self.OrionLib = OrionLib
+	self:LoadOrion()
 end
 
 function Ui:CreateWindow()
-	--// Check if Orion loaded
-	if not OrionLib then
+	--// Load Orion if not loaded
+	if not self:LoadOrion() then
 		warn("[DigmaSpy] Orion Library failed to load!")
 		return nil
 	end
 	
 	--// Create main window
-	local Window = OrionLib:MakeWindow({
-		Name = "DigmaSpy | +999999 AURA",
-		HidePremium = true,
-		SaveConfig = false,
-		ConfigFolder = "DigmaSpy",
-		IntroEnabled = true,
-		IntroText = "DigmaSpy",
-		IntroIcon = "rbxassetid://4483345998",
-	})
+	local Window
+	local Success, Err = pcall(function()
+		Window = OrionLib:MakeWindow({
+			Name = "DigmaSpy | +999999 AURA",
+			HidePremium = true,
+			SaveConfig = false,
+			ConfigFolder = "DigmaSpy",
+			IntroEnabled = false,
+		})
+	end)
+	
+	if not Success then
+		warn("[DigmaSpy] Failed to create window: " .. tostring(Err))
+		return nil
+	end
 	
 	self.MainWindow = Window
 	
@@ -153,209 +190,226 @@ function Ui:CreateWindow()
 end
 
 function Ui:CreateLogsTab(Window)
-	local LogsTab = Window:MakeTab({
-		Name = "Logs",
-		Icon = "rbxassetid://4483345998",
-		PremiumOnly = false
-	})
+	local Success, Err = pcall(function()
+		local LogsTab = Window:MakeTab({
+			Name = "Logs",
+			Icon = "rbxassetid://4483345998",
+			PremiumOnly = false
+		})
+		
+		--// Search/Filter section
+		LogsTab:AddTextbox({
+			Name = "Search Remotes",
+			Default = "",
+			TextDisappear = false,
+			Callback = function(Value)
+				self:FilterLogs(Value)
+			end
+		})
+		
+		--// Control buttons
+		LogsTab:AddButton({
+			Name = "Clear All Logs",
+			Callback = function()
+				self:ClearLogs()
+				self:Notify("All logs cleared!")
+			end
+		})
+		
+		--// Stats section
+		self.RemotesCountLabel = LogsTab:AddLabel("Total Remotes: 0")
+		
+		--// Logs container section
+		LogsTab:AddSection({Name = "Remote Logs"})
+		
+		self.LogsTab = LogsTab
+		self.LogButtons = {}
+	end)
 	
-	--// Search/Filter section
-	LogsTab:AddTextbox({
-		Name = "Search Remotes",
-		Default = "",
-		TextDisappear = false,
-		Callback = function(Value)
-			self:FilterLogs(Value)
-		end
-	})
-	
-	--// Control buttons
-	LogsTab:AddButton({
-		Name = "Clear All Logs",
-		Callback = function()
-			self:ClearLogs()
-			self:Notify("All logs cleared!")
-		end
-	})
-	
-	--// Stats section
-	LogsTab:AddLabel("Total Remotes: 0")
-	self.StatsLabel = LogsTab
-	
-	--// Logs container section
-	LogsTab:AddSection({Name = "Remote Logs"})
-	
-	self.LogsTab = LogsTab
-	self.LogButtons = {}
+	if not Success then
+		warn("[DigmaSpy] Failed to create Logs tab: " .. tostring(Err))
+	end
 end
 
 function Ui:CreateEditorTab(Window)
-	local EditorTab = Window:MakeTab({
-		Name = "Editor",
-		Icon = "rbxassetid://4483345998",
-		PremiumOnly = false
-	})
-	
-	--// Current remote info
-	self.RemoteInfoLabel = EditorTab:AddLabel("No remote selected")
-	
-	EditorTab:AddSection({Name = "Generated Script"})
-	
-	--// Code display (using textbox as readonly editor)
-	self.CodeBox = EditorTab:AddTextbox({
-		Name = "Script",
-		Default = self.DefaultEditorContent,
-		TextDisappear = false,
-		Callback = function() end
-	})
-	
-	--// Action buttons
-	EditorTab:AddButton({
-		Name = "Copy to Clipboard",
-		Callback = function()
-			if EditorText and EditorText ~= "" then
-				self:SetClipboard(EditorText)
-			else
-				self:Notify("No code to copy!")
+	local Success, Err = pcall(function()
+		local EditorTab = Window:MakeTab({
+			Name = "Editor",
+			Icon = "rbxassetid://4483345998",
+			PremiumOnly = false
+		})
+		
+		--// Current remote info
+		self.RemoteInfoLabel = EditorTab:AddLabel("No remote selected")
+		
+		EditorTab:AddSection({Name = "Generated Script"})
+		
+		--// Code display (using textbox as readonly editor)
+		self.CodeBox = EditorTab:AddTextbox({
+			Name = "Script",
+			Default = self.DefaultEditorContent,
+			TextDisappear = false,
+			Callback = function() end
+		})
+		
+		--// Action buttons
+		EditorTab:AddButton({
+			Name = "Copy to Clipboard",
+			Callback = function()
+				if EditorText and EditorText ~= "" then
+					self:SetClipboard(EditorText)
+				else
+					self:Notify("No code to copy!")
+				end
 			end
-		end
-	})
-	
-	EditorTab:AddButton({
-		Name = "Repeat Call",
-		Callback = function()
-			if ActiveData then
-				self:RepeatCall(ActiveData)
-			else
-				self:Notify("No remote selected!")
+		})
+		
+		EditorTab:AddButton({
+			Name = "Repeat Call",
+			Callback = function()
+				if ActiveData then
+					self:RepeatCall(ActiveData)
+				else
+					self:Notify("No remote selected!")
+				end
 			end
-		end
-	})
-	
-	EditorTab:AddButton({
-		Name = "Get Return Values",
-		Callback = function()
-			if ActiveData then
-				self:GetReturnValues(ActiveData)
-			else
-				self:Notify("No remote selected!")
+		})
+		
+		EditorTab:AddButton({
+			Name = "Get Return Values",
+			Callback = function()
+				if ActiveData then
+					self:GetReturnValues(ActiveData)
+				else
+					self:Notify("No remote selected!")
+				end
 			end
-		end
-	})
-	
-	EditorTab:AddButton({
-		Name = "Generate Info",
-		Callback = function()
-			if ActiveData then
-				self:GenerateInfo(ActiveData)
-			else
-				self:Notify("No remote selected!")
+		})
+		
+		EditorTab:AddButton({
+			Name = "Generate Info",
+			Callback = function()
+				if ActiveData then
+					self:GenerateInfo(ActiveData)
+				else
+					self:Notify("No remote selected!")
+				end
 			end
-		end
-	})
-	
-	EditorTab:AddButton({
-		Name = "Decompile Script",
-		Callback = function()
-			if ActiveData then
-				self:DecompileScript(ActiveData)
-			else
-				self:Notify("No remote selected!")
+		})
+		
+		EditorTab:AddButton({
+			Name = "Decompile Script",
+			Callback = function()
+				if ActiveData then
+					self:DecompileScript(ActiveData)
+				else
+					self:Notify("No remote selected!")
+				end
 			end
-		end
-	})
+		})
+		
+		self.EditorTab = EditorTab
+	end)
 	
-	self.EditorTab = EditorTab
+	if not Success then
+		warn("[DigmaSpy] Failed to create Editor tab: " .. tostring(Err))
+	end
 end
 
 function Ui:CreateOptionsTab(Window)
-	local OptionsTab = Window:MakeTab({
-		Name = "Options",
-		Icon = "rbxassetid://4483345998",
-		PremiumOnly = false
-	})
+	local Success, Err = pcall(function()
+		local OptionsTab = Window:MakeTab({
+			Name = "Options",
+			Icon = "rbxassetid://4483345998",
+			PremiumOnly = false
+		})
+		
+		--// Main toggles
+		OptionsTab:AddSection({Name = "Main Settings"})
+		
+		OptionsTab:AddToggle({
+			Name = "Log Receives",
+			Default = true,
+			Callback = function(Value)
+				Flags:SetFlagValue("LogRecives", Value)
+			end
+		})
+		
+		OptionsTab:AddToggle({
+			Name = "Ignore Nil Parents",
+			Default = true,
+			Callback = function(Value)
+				Flags:SetFlagValue("IgnoreNil", Value)
+			end
+		})
+		
+		OptionsTab:AddToggle({
+			Name = "Ignore Exploit Calls",
+			Default = false,
+			Callback = function(Value)
+				Flags:SetFlagValue("CheckCaller", Value)
+			end
+		})
+		
+		OptionsTab:AddToggle({
+			Name = "No Grouping (Flat List)",
+			Default = false,
+			Callback = function(Value)
+				Flags:SetFlagValue("NoTreeNodes", Value)
+			end
+		})
+		
+		OptionsTab:AddToggle({
+			Name = "Find String for Name",
+			Default = true,
+			Callback = function(Value)
+				Flags:SetFlagValue("FindStringForName", Value)
+			end
+		})
+		
+		--// Keybinds section
+		OptionsTab:AddSection({Name = "Keybinds"})
+		
+		OptionsTab:AddToggle({
+			Name = "Keybinds Enabled",
+			Default = true,
+			Callback = function(Value)
+				Flags:SetFlagValue("KeybindsEnabled", Value)
+			end
+		})
+		
+		--// Actions section
+		OptionsTab:AddSection({Name = "Actions"})
+		
+		OptionsTab:AddButton({
+			Name = "Clear All Blocks",
+			Callback = function()
+				Process:UpdateAllRemoteData("Blocked", false)
+				self:Notify("All blocks cleared!")
+			end
+		})
+		
+		OptionsTab:AddButton({
+			Name = "Clear All Excludes",
+			Callback = function()
+				Process:UpdateAllRemoteData("Excluded", false)
+				self:Notify("All excludes cleared!")
+			end
+		})
+		
+		--// Info section
+		OptionsTab:AddSection({Name = "About"})
+		
+		OptionsTab:AddLabel("DigmaSpy - Created by oxp7331-web!")
+		OptionsTab:AddLabel("Orion UI Library")
+		OptionsTab:AddLabel("Boiiiiii what did you say about DigmaSpy")
+		
+		self.OptionsTab = OptionsTab
+	end)
 	
-	--// Main toggles
-	OptionsTab:AddSection({Name = "Main Settings"})
-	
-	OptionsTab:AddToggle({
-		Name = "Log Receives",
-		Default = true,
-		Callback = function(Value)
-			Flags:SetFlagValue("LogRecives", Value)
-		end
-	})
-	
-	OptionsTab:AddToggle({
-		Name = "Ignore Nil Parents",
-		Default = true,
-		Callback = function(Value)
-			Flags:SetFlagValue("IgnoreNil", Value)
-		end
-	})
-	
-	OptionsTab:AddToggle({
-		Name = "Ignore Exploit Calls",
-		Default = false,
-		Callback = function(Value)
-			Flags:SetFlagValue("CheckCaller", Value)
-		end
-	})
-	
-	OptionsTab:AddToggle({
-		Name = "No Grouping (Flat List)",
-		Default = false,
-		Callback = function(Value)
-			Flags:SetFlagValue("NoTreeNodes", Value)
-		end
-	})
-	
-	OptionsTab:AddToggle({
-		Name = "Find String for Name",
-		Default = true,
-		Callback = function(Value)
-			Flags:SetFlagValue("FindStringForName", Value)
-		end
-	})
-	
-	--// Keybinds section
-	OptionsTab:AddSection({Name = "Keybinds"})
-	
-	OptionsTab:AddToggle({
-		Name = "Keybinds Enabled",
-		Default = true,
-		Callback = function(Value)
-			Flags:SetFlagValue("KeybindsEnabled", Value)
-		end
-	})
-	
-	--// Actions section
-	OptionsTab:AddSection({Name = "Actions"})
-	
-	OptionsTab:AddButton({
-		Name = "Clear All Blocks",
-		Callback = function()
-			Process:UpdateAllRemoteData("Blocked", false)
-			self:Notify("All blocks cleared!")
-		end
-	})
-	
-	OptionsTab:AddButton({
-		Name = "Clear All Excludes",
-		Callback = function()
-			Process:UpdateAllRemoteData("Excluded", false)
-			self:Notify("All excludes cleared!")
-		end
-	})
-	
-	--// Info section
-	OptionsTab:AddSection({Name = "About"})
-	
-	OptionsTab:AddLabel("DigmaSpy - Created by oxp7331-web!")
-	OptionsTab:AddLabel("Orion UI Library")
-	OptionsTab:AddLabel("Boiiiiii what did you say about DigmaSpy 💀💀")
-	
-	self.OptionsTab = OptionsTab
+	if not Success then
+		warn("[DigmaSpy] Failed to create Options tab: " .. tostring(Err))
+	end
 end
 
 function Ui:ShowModal(Text: string)
@@ -367,12 +421,17 @@ function Ui:ShowUnsupported(FuncName: string)
 		warn("[DigmaSpy] Not supported - Missing function: " .. FuncName)
 		return
 	end
-	OrionLib:MakeNotification({
-		Name = "DigmaSpy - Not Supported",
-		Content = "Missing function: " .. FuncName,
-		Image = "rbxassetid://4483345998",
-		Time = 10
-	})
+	local Success, Err = pcall(function()
+		OrionLib:MakeNotification({
+			Name = "DigmaSpy - Not Supported",
+			Content = "Missing function: " .. FuncName,
+			Image = "rbxassetid://4483345998",
+			Time = 10
+		})
+	end)
+	if not Success then
+		warn("[DigmaSpy ShowUnsupported Error] " .. tostring(Err))
+	end
 end
 
 --// Log management
@@ -400,65 +459,71 @@ function Ui:BeginLogService()
 end
 
 function Ui:CreateLog(Data: Log)
-	local Remote = Data.Remote
-	local Method = Data.Method
-	local IsReceive = Data.IsReceive
-	local Id = Data.Id
-	
-	--// Checks
-	local Paused = Flags:GetFlagValue("Paused")
-	if Paused then return end
-	
-	local CheckCaller = Flags:GetFlagValue("CheckCaller")
-	if CheckCaller and not checkcaller() then return end
-	
-	local IgnoreNil = Flags:GetFlagValue("IgnoreNil")
-	if IgnoreNil and Hook:Index(Remote, "Parent") == nil then return end
-	
-	local LogRecives = Flags:GetFlagValue("LogRecives")
-	if not LogRecives and IsReceive then return end
-	
-	local RemoteData = Process:GetRemoteData(Id)
-	if RemoteData.Excluded then return end
-	
-	--// Create log entry
-	RemotesCount += 1
-	
-	local Color = Theme.MethodColors[Method:lower()] or Theme.Text
-	local DisplayText = `{Remote.Name} | {Method}`
-	
-	--// Find string for name
-	local FindString = Flags:GetFlagValue("FindStringForName")
-	if FindString then
-		for _, Arg in next, Data.Args do
-			if typeof(Arg) == "string" then
-				DisplayText = `{Arg:sub(1,15)} | {DisplayText}`
-				break
+	local Success, Err = pcall(function()
+		local Remote = Data.Remote
+		local Method = Data.Method
+		local IsReceive = Data.IsReceive
+		local Id = Data.Id
+		
+		--// Checks
+		local Paused = Flags:GetFlagValue("Paused")
+		if Paused then return end
+		
+		local CheckCaller = Flags:GetFlagValue("CheckCaller")
+		if CheckCaller and not checkcaller() then return end
+		
+		local IgnoreNil = Flags:GetFlagValue("IgnoreNil")
+		if IgnoreNil and Hook:Index(Remote, "Parent") == nil then return end
+		
+		local LogRecives = Flags:GetFlagValue("LogRecives")
+		if not LogRecives and IsReceive then return end
+		
+		local RemoteData = Process:GetRemoteData(Id)
+		if RemoteData.Excluded then return end
+		
+		--// Create log entry
+		RemotesCount += 1
+		
+		local Color = Theme.MethodColors[Method:lower()] or Theme.Text
+		local DisplayText = `{Remote.Name} | {Method}`
+		
+		--// Find string for name
+		local FindString = Flags:GetFlagValue("FindStringForName")
+		if FindString then
+			for _, Arg in next, Data.Args do
+				if typeof(Arg) == "string" then
+					DisplayText = `{Arg:sub(1,15)} | {DisplayText}`
+					break
+				end
 			end
 		end
-	end
+		
+		--// Store log data
+		self.Logs[Id] = Data
+		
+		--// Add button for this log
+		if self.LogsTab then
+			local Button = self.LogsTab:AddButton({
+				Name = DisplayText,
+				Callback = function()
+					self:SetFocusedRemote(Data)
+				end
+			})
+			table.insert(self.LogButtons, {
+				Button = Button,
+				Text = DisplayText,
+				Remote = Remote
+			})
+		end
+		
+		--// Update stats
+		if self.RemotesCountLabel then
+			self.RemotesCountLabel:Set("Total Remotes: " .. RemotesCount)
+		end
+	end)
 	
-	--// Store log data
-	self.Logs[Id] = Data
-	
-	--// Add button for this log
-	if self.LogsTab then
-		local Button = self.LogsTab:AddButton({
-			Name = DisplayText,
-			Callback = function()
-				self:SetFocusedRemote(Data)
-			end
-		})
-		table.insert(self.LogButtons, {
-			Button = Button,
-			Text = DisplayText,
-			Remote = Remote
-		})
-	end
-	
-	--// Update stats
-	if self.StatsLabel then
-		self.StatsLabel:AddLabel("Total Remotes: " .. RemotesCount)
+	if not Success then
+		warn("[DigmaSpy CreateLog Error] " .. tostring(Err))
 	end
 end
 
@@ -498,33 +563,34 @@ end
 
 --// Remote focus and editor functions
 function Ui:SetFocusedRemote(Data: Log)
-	ActiveData = Data
-	CurrentRemoteId = Data.Id
+	local Success, Err = pcall(function()
+		ActiveData = Data
+		CurrentRemoteId = Data.Id
+		
+		local Remote = Data.Remote
+		local Method = Data.Method
+		local Args = Data.Args
+		local IsReceive = Data.IsReceive
+		
+		--// Update info label
+		if self.RemoteInfoLabel then
+			self.RemoteInfoLabel:Set("Remote: " .. tostring(Remote) .. " | Method: " .. Method)
+		end
+		
+		--// Generate initial script
+		local Module = Generation:NewParser()
+		if not Module then
+			self:SetEditorText("-- Parser failed to load (-9999999 AURA)")
+			return
+		end
+		
+		local Parsed = Generation:RemoteScript(Module, Data)
+		
+		self:SetEditorText(Parsed)
+	end)
 	
-	local Remote = Data.Remote
-	local Method = Data.Method
-	local Args = Data.Args
-	local IsReceive = Data.IsReceive
-	
-	--// Update info label
-	if self.RemoteInfoLabel then
-		self.RemoteInfoLabel:Set("Remote: " .. tostring(Remote) .. " | Method: " .. Method)
-	end
-	
-	--// Generate initial script
-	local Module = Generation:NewParser()
-	if not Module then
-		self:SetEditorText("-- Parser failed to load (-9999999 AURA)")
-		return
-	end
-	
-	local Parsed = Generation:RemoteScript(Module, Data)
-	
-	self:SetEditorText(Parsed)
-	
-	--// Switch to editor tab
-	if self.MainWindow then
-		-- Switch to editor tab if possible
+	if not Success then
+		warn("[DigmaSpy SetFocusedRemote Error] " .. tostring(Err))
 	end
 end
 
@@ -536,115 +602,139 @@ function Ui:SetEditorText(Text: string)
 end
 
 function Ui:RepeatCall(Data)
-	local Remote = Data.Remote
-	local Method = Data.Method
-	local Args = Data.Args
-	local IsReceive = Data.IsReceive
-	
-	local Signal = Hook:Index(Remote, Method)
-	if IsReceive then
-		if firesignal then
-			firesignal(Signal, unpack(Args))
-			self:Notify("Fired signal!")
+	local Success, Err = pcall(function()
+		local Remote = Data.Remote
+		local Method = Data.Method
+		local Args = Data.Args
+		local IsReceive = Data.IsReceive
+		
+		local Signal = Hook:Index(Remote, Method)
+		if IsReceive then
+			if firesignal then
+				firesignal(Signal, unpack(Args))
+				self:Notify("Fired signal!")
+			else
+				self:Notify("firesignal not supported!")
+			end
 		else
-			self:Notify("firesignal not supported!")
+			Signal(Remote, unpack(Args))
+			self:Notify("Repeated call!")
 		end
-	else
-		Signal(Remote, unpack(Args))
-		self:Notify("Repeated call!")
+	end)
+	
+	if not Success then
+		warn("[DigmaSpy RepeatCall Error] " .. tostring(Err))
 	end
 end
 
 function Ui:GetReturnValues(Data)
-	local ReturnValues = Data.ReturnValues
-	local ClassData = Data.ClassData
+	local Success, Err = pcall(function()
+		local ReturnValues = Data.ReturnValues
+		local ClassData = Data.ClassData
+		
+		if not ClassData or not ClassData.IsRemoteFunction then
+			self:SetEditorText("-- Remote is not a function bozo (-9999999 AURA)")
+			return
+		end
+		
+		if not ReturnValues then
+			self:SetEditorText("-- No return values (-9999999 AURA)")
+			return
+		end
+		
+		local Script = Generation:TableScript(ReturnValues)
+		self:SetEditorText(Script)
+	end)
 	
-	if not ClassData or not ClassData.IsRemoteFunction then
-		self:SetEditorText("-- Remote is not a function bozo (-9999999 AURA)")
-		return
+	if not Success then
+		warn("[DigmaSpy GetReturnValues Error] " .. tostring(Err))
 	end
-	
-	if not ReturnValues then
-		self:SetEditorText("-- No return values (-9999999 AURA)")
-		return
-	end
-	
-	local Script = Generation:TableScript(ReturnValues)
-	self:SetEditorText(Script)
 end
 
 function Ui:GenerateInfo(Data)
-	local IsReceive = Data.IsReceive
-	local Function = Data.CallingFunction
-	local Remote = Data.Remote
-	local Method = Data.Method
-	local Id = Data.Id
-	local ClassData = Data.ClassData
-	
-	if IsReceive then
-		local Script = "-- Boiiiii what did you say about IsReceive (-9999999 AURA)\n"
-		Script ..= "\n-- Voice message: ▶ .ılıılıılıılıılıılı. 0:69\n"
+	local Success, Err = pcall(function()
+		local IsReceive = Data.IsReceive
+		local Function = Data.CallingFunction
+		local Remote = Data.Remote
+		local Method = Data.Method
+		local Id = Data.Id
+		local ClassData = Data.ClassData
+		
+		if IsReceive then
+			local Script = "-- Boiiiii what did you say about IsReceive (-9999999 AURA)\n"
+			Script ..= "\n-- Voice message: ▶ .ılıılıılıılıılıılı. 0:69\n"
+			self:SetEditorText(Script)
+			return
+		end
+		
+		local Connections = {}
+		local SourceScript = rawget(getfenv(Function), "script")
+		
+		local FunctionInfo = {
+			["Script"] = {
+				["SourceScript"] = SourceScript,
+				["CallingScript"] = Data.CallingScript
+			},
+			["Remote"] = {
+				["Remote"] = Remote,
+				["RemoteID"] = Id,
+				["Method"] = Method
+			},
+			["MetaMethod"] = Data.MetaMethod,
+			["IsActor"] = Data.IsActor,
+			["CallingFunction"] = Function,
+			["Connections"] = Connections
+		}
+		
+		if islclosure(Function) then
+			FunctionInfo["UpValues"] = debug.getupvalues(Function)
+			FunctionInfo["Constants"] = debug.getconstants(Function)
+		end
+		
+		local ReceiveMethods = ClassData.Receive
+		for _, RecvMethod: string in next, ReceiveMethods do
+			pcall(function()
+				local Signal = Hook:Index(Remote, RecvMethod)
+				Connections[RecvMethod] = Generation:ConnectionsTable(Signal)
+			end)
+		end
+		
+		local Script = Generation:TableScript(FunctionInfo)
 		self:SetEditorText(Script)
-		return
+	end)
+	
+	if not Success then
+		warn("[DigmaSpy GenerateInfo Error] " .. tostring(Err))
 	end
-	
-	local Connections = {}
-	local SourceScript = rawget(getfenv(Function), "script")
-	
-	local FunctionInfo = {
-		["Script"] = {
-			["SourceScript"] = SourceScript,
-			["CallingScript"] = Data.CallingScript
-		},
-		["Remote"] = {
-			["Remote"] = Remote,
-			["RemoteID"] = Id,
-			["Method"] = Method
-		},
-		["MetaMethod"] = Data.MetaMethod,
-		["IsActor"] = Data.IsActor,
-		["CallingFunction"] = Function,
-		["Connections"] = Connections
-	}
-	
-	if islclosure(Function) then
-		FunctionInfo["UpValues"] = debug.getupvalues(Function)
-		FunctionInfo["Constants"] = debug.getconstants(Function)
-	end
-	
-	local ReceiveMethods = ClassData.Receive
-	for _, RecvMethod: string in next, ReceiveMethods do
-		pcall(function()
-			local Signal = Hook:Index(Remote, RecvMethod)
-			Connections[RecvMethod] = Generation:ConnectionsTable(Signal)
-		end)
-	end
-	
-	local Script = Generation:TableScript(FunctionInfo)
-	self:SetEditorText(Script)
 end
 
 function Ui:DecompileScript(Data)
-	local Script = Data.CallingScript
-	
-	if not decompile then
-		self:SetEditorText("-- Exploit is missing 'decompile' function (-9999999 AURA)")
-		return
-	end
-	
-	if not Script then
-		self:SetEditorText("-- Script is missing (-9999999 AURA)")
-		return
-	end
-	
-	self:SetEditorText("-- Decompiling... +9999999 AURA (mango phonk)")
-	
-	task.spawn(function()
-		local Decompiled = decompile(Script)
-		local Source = "-- BOOIIII THIS IS SO TUFF FLIPPY SKIBIDI AURA (DIGMASPY)\n"
-		Source ..= Decompiled
-		self:SetEditorText(Source)
+	local Success, Err = pcall(function()
+		local Script = Data.CallingScript
+		
+		if not decompile then
+			self:SetEditorText("-- Exploit is missing 'decompile' function (-9999999 AURA)")
+			return
+		end
+		
+		if not Script then
+			self:SetEditorText("-- Script is missing (-9999999 AURA)")
+			return
+		end
+		
+		self:SetEditorText("-- Decompiling... +9999999 AURA (mango phonk)")
+		
+		task.spawn(function()
+			local Decompiled = decompile(Script)
+			local Source = "-- BOOIIII THIS IS SO TUFF FLIPPY SKIBIDI AURA (DIGMASPY)\n"
+			Source ..= Decompiled
+			self:SetEditorText(Source)
+		end)
 	end)
+	
+	if not Success then
+		warn("[DigmaSpy DecompileScript Error] " .. tostring(Err))
+	end
 end
 
 function Ui:SetFont(FontJsonFile: string, FontContent: string)

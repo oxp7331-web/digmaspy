@@ -92,12 +92,15 @@ Files:LoadModules(Modules, {
 	Services = Services
 })
 
---// Orion Create window
-local Window = Ui:CreateWindow()
+--// Orion Create window (with error handling)
+local Window
+local WindowSuccess, WindowErr = pcall(function()
+	Window = Ui:CreateWindow()
+end)
 
 --// Check if window was created
-if not Window then
-	warn("[DigmaSpy] Failed to create window!")
+if not WindowSuccess or not Window then
+	warn("[DigmaSpy] Failed to create window: " .. tostring(WindowErr))
 	return
 end
 
