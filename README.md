@@ -1,15 +1,15 @@
-# Sigma-Spy
+# DigmaSpy
 A complete Remote Spy with an incredible parser that captures Client receives and pushes with Actor support!
 
 ## Notices
-- Sigma Spy will have bugs, please report any bugs by opening an [issue](https://github.com/depthso/Sigma-Spy/issues) on Github
-- If you gave a suggestion, please post it in the [discussions](https://github.com/depthso/Sigma-Spy/discussions)
+- DigmaSpy will have bugs, please report any bugs by opening an [issue](https://github.com/oxp7331-web/digmaspy/issues) on Github
+- If you have a suggestion, please post it in the [discussions](https://github.com/oxp7331-web/digmaspy/discussions)
 - Please do not use Potassium in games with Actors as Potassium's crude implimentations break
 
 ## Loadstring
 ```lua
---// Sigma Spy @depso
-loadstring(game:HttpGet("https://raw.githubusercontent.com/depthso/Sigma-Spy/refs/heads/main/Main.lua"), "Sigma Spy")()
+--// DigmaSpy @oxp7331-web
+loadstring(game:HttpGet("https://raw.githubusercontent.com/oxp7331-web/digmaspy/refs/heads/main/Main.lua"), "DigmaSpy")()
 ```
 
 ## Features ⚡
@@ -40,7 +40,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/depthso/Sigma-Spy/ref
 </table>
 
 ## Required functions ⚠️
-Sigma spy will prompt you if your executor does not support it.
+DigmaSpy will prompt you if your executor does not support it.
 Your executor must support these functions in order for it to function:
 - create_comm_channel
 - get_comm_channel

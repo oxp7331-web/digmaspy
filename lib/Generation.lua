@@ -5,7 +5,7 @@ type table = {
 }
 
 --// Libraries
-local ParserModule = loadstring(game:HttpGet('https://raw.githubusercontent.com/depthso/Roblox-parser/refs/heads/main/main.lua'))()
+local ParserModule = loadstring(game:HttpGet('https://raw.githubusercontent.com/oxp7331-web/Roblox-parser/refs/heads/main/main.lua'))()
 
 --// Parser
 function ParserModule:Import(Name: string)
@@ -33,7 +33,7 @@ function Generation:SetSwapsCallback(Callback: (Interface: table) -> ())
 end
 
 function Generation:GetBase(Module): string
-	local Code = "-- Generated with sigma spy BOIIIIIIIII (+9999999 AURA)\n\n"
+	local Code = "-- Generated with DigmaSpy BOIIIIIIIII (+9999999 AURA)\n\n"
 
 	--// Generate variables code
 	Code ..= Module.Parser:MakeVariableCode({

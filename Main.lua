@@ -1,5 +1,5 @@
 --[[
-	⣿⣿⣿⣿⣿⣿SIGMA SPY⣿⣿⣿⣿⣿⣿
+	⣿⣿⣿⣿⣿⣿DIGMASPY⣿⣿⣿⣿⣿⣿
 	⣿⣿⣯⡉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠁
 	⠉⠻⣿⣿⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 	⠀⠀⠈⠻⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -11,16 +11,16 @@
 	⣿⣿⣟⣁⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⣀⡀
 	⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇
 
-    Written by @depso
+    Written by @oxp7331-web
     MIT License
     
-    https://github.com/depthso
+    https://github.com/oxp7331-web
 ]]
 
 --// File handling configuration 
 local FilesConfig = {
 	UseWorkspace = false,
-	RepoUrl = "https://raw.githubusercontent.com/depthso/Sigma-Spy/refs/heads/main" -- "http://127.0.0.1:3000"
+	RepoUrl = "https://raw.githubusercontent.com/oxp7331-web/digmaspy/refs/heads/main" -- "http://127.0.0.1:3000"
 }
 
 --// Service handlers
@@ -52,8 +52,8 @@ Files:Init({
 --// Modules
 local Scripts = {
 	--// User configurations
-	Config = Files:GetModule("Sigma Spy/Config", "Config"),
-	ReturnSpoofs = Files:GetModule("Sigma Spy/Return spoofs", "Return Spoofs"),
+	Config = Files:GetModule("DigmaSpy/Config", "Config"),
+	ReturnSpoofs = Files:GetModule("DigmaSpy/Return spoofs", "Return Spoofs"),
 
 	--// Libraries
 	Process = Files:GetModule("lib/Process"),
@@ -76,11 +76,6 @@ local Communication = Modules.Communication
 --// Unpack config
 local BlackListedServices = Config.BlackListedServices
 
---// Use custom font (optional)
-local FontContent = Files:GetAsset("ProggyClean.ttf", true)
-local FontJsonFile = Files:CreateFont("ProggyClean", FontContent)
-Ui:SetFont(FontJsonFile, FontContent)
-
 --// Actor code
 local ActorCode = Files:CompileModule(Scripts)
 ActorCode ..= [=[
@@ -97,10 +92,10 @@ Files:LoadModules(Modules, {
 	Services = Services
 })
 
---// ReGui Create window
+--// Orion Create window
 local Window = Ui:CreateWindow()
 
---// Check if Sigma spy is supported
+--// Check if DigmaSpy is supported
 local Supported = Process:CheckIsSupported()
 if not Supported then 
 	Window:Close()
@@ -120,12 +115,7 @@ Generation:SetSwapsCallback(function(self)
 end)
 
 --// Beta alert modal
-Ui:ShowModal({
-	"<b>Attention!</b>",
-	"Sigma Spy is in BETA, please expect issues\n",
-	"Report any issues to the Github page (depthso/Sigma-Spy)\n",
-	"Many thanks!"
-})
+Ui:ShowModal("Attention! DigmaSpy is in BETA, please expect issues. Report any issues to the Github page (oxp7331-web/digmaspy). Many thanks!")
 
 --// Create window content
 Ui:CreateWindowContent(Window)
