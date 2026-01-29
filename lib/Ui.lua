@@ -36,12 +36,12 @@ type Log = {
 --// Compatibility
 local SetClipboard = setclipboard or toclipboard or set_clipboard
 
---// Libraries
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
-
 --// Services
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+
+--// Libraries (loaded in Init)
+local OrionLib = nil
 
 --// Modules
 local Flags
@@ -83,6 +83,10 @@ function Ui:SetClipboard(Content: string)
 end
 
 function Ui:Notify(Text: string, Time: number?)
+	if not OrionLib then
+		warn("[DigmaSpy] " .. Text)
+		return
+	end
 	OrionLib:MakeNotification({
 		Name = "DigmaSpy",
 		Content = Text,
@@ -101,10 +105,27 @@ function Ui:Init(Data)
 	Hook = Modules.Hook
 	Config = Modules.Config
 	
+	--// Load Orion Library
+	local Success, Result = pcall(function()
+		return loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
+	end)
+	
+	if not Success then
+		warn("[DigmaSpy] Failed to load Orion Library: " .. tostring(Result))
+		return
+	end
+	
+	OrionLib = Result
 	self.OrionLib = OrionLib
 end
 
 function Ui:CreateWindow()
+	--// Check if Orion loaded
+	if not OrionLib then
+		warn("[DigmaSpy] Orion Library failed to load!")
+		return nil
+	end
+	
 	--// Create main window
 	local Window = OrionLib:MakeWindow({
 		Name = "DigmaSpy | +999999 AURA",
@@ -342,6 +363,10 @@ function Ui:ShowModal(Text: string)
 end
 
 function Ui:ShowUnsupported(FuncName: string)
+	if not OrionLib then
+		warn("[DigmaSpy] Not supported - Missing function: " .. FuncName)
+		return
+	end
 	OrionLib:MakeNotification({
 		Name = "DigmaSpy - Not Supported",
 		Content = "Missing function: " .. FuncName,

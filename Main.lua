@@ -95,10 +95,15 @@ Files:LoadModules(Modules, {
 --// Orion Create window
 local Window = Ui:CreateWindow()
 
+--// Check if window was created
+if not Window then
+	warn("[DigmaSpy] Failed to create window!")
+	return
+end
+
 --// Check if DigmaSpy is supported
 local Supported = Process:CheckIsSupported()
 if not Supported then 
-	Window:Close()
 	return
 end
 
